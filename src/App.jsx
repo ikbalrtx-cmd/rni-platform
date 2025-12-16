@@ -24,19 +24,18 @@ import {
   User, Phone, Mail, MapPin, Briefcase, 
   Download, Send, LogOut, CheckCircle, 
   AlertCircle, ChevronDown, Lock, Menu, X, Image as ImageIcon,
-  Facebook, Building, List, Filter, Search, FileText
+  Facebook, Building, List, Filter, Search, FileText, ShieldAlert
 } from 'lucide-react';
 
-// --- إعدادات Firebase ---
-// ملاحظة: في مشروع Vite المحلي الخاص بك، يفضل استخدام import.meta.env
-// هنا نستخدم process.env لضمان توافق المعاينة
+// --- إعدادات النظام ---
+// نستخدم import.meta.env لأنك تستخدم Vite (هذا هو الصحيح للنشر على Vercel)
 const firebaseConfig = {
-  apiKey: process.env.VITE_API_KEY || "YOUR_API_KEY",
-  authDomain: process.env.VITE_AUTH_DOMAIN || "YOUR_AUTH_DOMAIN",
-  projectId: process.env.VITE_PROJECT_ID || "YOUR_PROJECT_ID",
-  storageBucket: process.env.VITE_STORAGE_BUCKET || "YOUR_BUCKET",
-  messagingSenderId: process.env.VITE_MESSAGING_SENDER_ID || "YOUR_SENDER_ID",
-  appId: process.env.VITE_APP_ID || "YOUR_APP_ID"
+  apiKey: import.meta.env.VITE_API_KEY,
+  authDomain: import.meta.env.VITE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_APP_ID
 };
 
 // تهيئة التطبيق
@@ -70,7 +69,7 @@ const Logo = ({ size = "large" }) => (
        {/* استبدل src برابط الشعار الخاص بك */}
        <div className="flex flex-col items-center justify-center w-32 h-32 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl text-gray-400">
          <ImageIcon size={32} />
-         <span className="text-[10px] mt-2 font-bold text-center">Logo Here</span>
+         <span className="text-[10px] mt-2 font-bold text-center">شعار الهيئة</span>
        </div>
     </div>
     <div className="text-center">
@@ -155,7 +154,7 @@ const RegistrationView = ({ setView, submitStatus, setSubmitStatus, handleSubmit
   </div>
 );
 
-// --- 2. واجهة الدخول (تم التحديث للأمان) ---
+// --- 2. واجهة الدخول ---
 const LoginView = ({ handleAdminLogin, adminEmail, setAdminEmail, adminPassword, setAdminPassword, loginError, loading, setView }) => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50 relative font-sans" dir="rtl">
     <div className="bg-white/80 backdrop-blur-xl p-12 rounded-[2.5rem] shadow-2xl w-full max-w-[480px] border border-white/50 z-10">
@@ -195,8 +194,8 @@ const LoginView = ({ handleAdminLogin, adminEmail, setAdminEmail, adminPassword,
   </div>
 );
 
-// --- 3. لوحة التحكم (محدثة) ---
-const DashboardView = ({ sidebarOpen, setSidebarOpen, handleLogout, loginUser, exportToExcel, exportToPDF, registrations }) => {
+// --- 3. لوحة التحكم ---
+const DashboardView = ({ sidebarOpen, setSidebarOpen, handleLogout, loginUser, exportToExcel, exportToPDF, registrations, accessDenied }) => {
   // حالات الفرز
   const [filterRegion, setFilterRegion] = useState('');
   const [filterCity, setFilterCity] = useState('');
@@ -233,6 +232,41 @@ const DashboardView = ({ sidebarOpen, setSidebarOpen, handleLogout, loginUser, e
     const c={}; filteredRegistrations.forEach(r=>c[r.city]=(c[r.city]||0)+1);
     return Object.keys(c).map(k=>({name:k, value:c[k]})).sort((a,b)=>b.value-a.value);
   }, [filteredRegistrations]);
+
+  // --- شاشة الخطأ في الصلاحيات (الجديدة) ---
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans" dir="rtl">
+        <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-2xl text-center border border-red-100">
+           <div className="w-24 h-24 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+             <ShieldAlert size={48}/>
+           </div>
+           <h2 className="text-3xl font-black text-gray-800 mb-4">تنبيه أمني من المنصة</h2>
+           <p className="text-gray-600 mb-8 text-lg leading-relaxed">
+             تم تسجيل دخولك بنجاح، ولكن <strong>النظام لا يستطيع التأكد من صلاحياتك كمشرف</strong>.
+             <br/><br/>
+             <span className="text-red-500 font-bold block mb-2">السبب المحتمل:</span>
+             لم يتم إضافة حسابك في قاعدة البيانات ضمن قائمة المشرفين (Users Collection).
+           </p>
+           
+           <div className="bg-blue-50 p-6 rounded-2xl text-right mb-8 border border-blue-100">
+             <h4 className="font-bold text-[#009FE3] mb-2">كيفية الحل (للمطور):</h4>
+             <ul className="list-disc list-inside text-sm text-gray-600 space-y-2">
+               <li>اذهب إلى لوحة تحكم قاعدة البيانات.</li>
+               <li>أنشئ مجموعة (Collection) باسم <code>users</code>.</li>
+               <li>أضف مستنداً (Document) يحمل نفس <strong>معرف المستخدم (UID)</strong> الخاص بك.</li>
+               <li>أضف حقلاً بداخله باسم <code>role</code> وقيمة <code>admin</code>.</li>
+               <li>معرفك الحالي هو: <code className="bg-white px-2 py-1 rounded border mx-1 select-all">{loginUser?.uid}</code></li>
+             </ul>
+           </div>
+
+           <button onClick={handleLogout} className="bg-gray-800 text-white px-8 py-3 rounded-xl font-bold hover:bg-black transition-all">
+             تسجيل الخروج والمحاولة لاحقاً
+           </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans flex text-right" dir="rtl">
@@ -361,6 +395,7 @@ export default function App() {
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [accessDenied, setAccessDenied] = useState(false); // حالة رفض الصلاحية الجديدة
 
   const [formData, setFormData] = useState({
     fullName: '', cnie: '', phone: '', email: '',
@@ -375,12 +410,10 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        // إذا كان المستخدم ليس مجهولاً (أي أنه مشرف سجل بإيميل)، نتوجه للوحة التحكم
         if (!currentUser.isAnonymous) {
           setView('dashboard');
         }
       } else {
-        // تسجيل دخول زائر تلقائي
         signInAnonymously(auth).catch(err => console.error("Anonymous Auth Failed:", err));
       }
     });
@@ -389,19 +422,19 @@ export default function App() {
 
   // جلب البيانات فقط عند الدخول للوحة التحكم والمستخدم ليس مجهولاً
   useEffect(() => {
-    // شرط الأمان الإضافي: جلب البيانات فقط إذا كان المستخدم أدمن (غير مجهول)
     if (!user || user.isAnonymous || view !== 'dashboard') return;
+    setAccessDenied(false); // تصفير حالة الرفض عند المحاولة
     
-    // جلب البيانات بترتيب زمني
     const q = query(collection(db, 'registrations'), orderBy('createdAt', 'desc'));
     
-    // استخدام onSnapshot للتحديث الحي (Real-time)
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setRegistrations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
       if (error.code === 'permission-denied') {
-         console.error("Access Denied: You are not an admin.");
-         // يمكن إضافة تنبيه للمستخدم هنا
+         // بدلاً من إظهار رسالة بالإنجليزية، نقوم بتفعيل شاشة التنبيه العربية
+         setAccessDenied(true);
+      } else {
+         console.error("System Error:", error.message); // رسالة عامة
       }
     });
     return () => unsubscribe();
@@ -435,7 +468,7 @@ export default function App() {
       setSubmitStatus('success');
       setFormData({ fullName: '', cnie: '', phone: '', email: '', region: '', province: '', city: '', profession: '' });
     } catch (err) { 
-      console.error("Error:", err); 
+      console.error("System Error"); 
       alert("حدث خطأ في الاتصال. حاول مرة أخرى.");
       setSubmitStatus('error'); 
     }
@@ -449,13 +482,11 @@ export default function App() {
     setLoading(true);
 
     try {
-      // التحقق عبر Firebase Authentication
       await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-      // التوجيه يتم تلقائياً عبر useEffect
       setAdminEmail('');
       setAdminPassword('');
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error("Auth Error");
       setLoginError("البريد الإلكتروني أو كلمة السر غير صحيحة");
     }
     setLoading(false);
@@ -463,8 +494,8 @@ export default function App() {
 
   const handleLogout = async () => {
     await signOut(auth);
+    setAccessDenied(false);
     setView('form');
-    // سيعود الـ useEffect ويسجله كزائر مجهول تلقائياً
   };
 
   const exportToPDF = () => {
@@ -566,6 +597,7 @@ export default function App() {
           exportToExcel={exportToExcel}
           exportToPDF={exportToPDF}
           registrations={registrations}
+          accessDenied={accessDenied}
       />}
     </>
   );
