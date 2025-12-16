@@ -576,7 +576,7 @@ export default function App() {
       setView('dashboard');
     } catch (err) {
       console.error("Admin login error:", err);
-      setLoginError("بيانات الدخول غير صحيحة أو لم يتم تفعيل Email/Password في Firebase Auth.");
+      setLoginError("بيانات الدخول غير صحيحة أو لم يتم التفعيل .");
     }
   };
 
