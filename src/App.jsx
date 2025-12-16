@@ -1,7 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from 'firebase/firestore';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { db, auth } from './firebaseConfig';
+import { initializeApp } from "firebase/app";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  getDocs, 
+  serverTimestamp,
+  query, 
+  orderBy, 
+  onSnapshot
+} from "firebase/firestore";
+import { 
+  getAuth, 
+  signInAnonymously, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged 
+} from "firebase/auth";
 import { 
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
@@ -9,8 +24,24 @@ import {
   User, Phone, Mail, MapPin, Briefcase, 
   Download, Send, LogOut, CheckCircle, 
   AlertCircle, ChevronDown, Lock, Menu, X, Image as ImageIcon,
-  Facebook, Building, List, Filter, Search, FileText
+  Facebook, Building, List, Filter, Search, FileText, ShieldAlert
 } from 'lucide-react';
+
+// --- إعدادات النظام ---
+// استخدام process.env لضمان التوافق مع بيئة المعاينة
+const firebaseConfig = {
+  apiKey: process.env.VITE_API_KEY,
+  authDomain: process.env.VITE_AUTH_DOMAIN,
+  projectId: process.env.VITE_PROJECT_ID,
+  storageBucket: process.env.VITE_STORAGE_BUCKET,
+  messagingSenderId: process.env.VITE_MESSAGING_SENDER_ID,
+  appId: process.env.VITE_APP_ID
+};
+
+// تهيئة التطبيق
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
 // --- الثوابت ---
 const MOROCCO_REGIONS = [
@@ -35,13 +66,10 @@ const GlobalStyles = () => (
 const Logo = ({ size = "large" }) => (
   <div className={`flex flex-col items-center justify-center ${size === "small" ? "scale-75" : ""}`}>
     <div className="mb-4">
-       <img src="./logo.png" alt="شعار الهيئة" 
-         className={`object-contain ${size === "small" ? "h-20" : "h-32"} drop-shadow-md`}
-         onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-       />
-       <div className="hidden flex-col items-center justify-center w-32 h-32 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl text-gray-400">
+       {/* استبدل src برابط الشعار الخاص بك */}
+       <div className="flex flex-col items-center justify-center w-32 h-32 bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl text-gray-400">
          <ImageIcon size={32} />
-         <span className="text-[10px] mt-2 font-bold text-center">Missing<br/>logo.png</span>
+         <span className="text-[10px] mt-2 font-bold text-center">شعار الهيئة</span>
        </div>
     </div>
     <div className="text-center">
@@ -119,7 +147,7 @@ const RegistrationView = ({ setView, submitStatus, setSubmitStatus, handleSubmit
       <footer className="mt-4 pb-8 text-center text-gray-500 text-sm font-medium">
         <div className="flex items-center justify-center gap-2">
           <span>تصميم و إعداد :</span>
-          <a href="https://www.facebook.com/ikbal.ouaissa" target="_blank" className="text-[#009FE3] font-bold flex items-center gap-1">ذ.إقبال أوعيسى <Facebook size={14} /></a>
+          <span className="text-[#009FE3] font-bold flex items-center gap-1">ذ.إقبال أوعيسى <Facebook size={14} /></span>
         </div>
       </footer>
     </main>
@@ -127,23 +155,47 @@ const RegistrationView = ({ setView, submitStatus, setSubmitStatus, handleSubmit
 );
 
 // --- 2. واجهة الدخول ---
-const LoginView = ({ handleAdminLogin, loginUser, setLoginUser, loginPass, setLoginPass, loginError, setView }) => (
+const LoginView = ({ handleAdminLogin, adminEmail, setAdminEmail, adminPassword, setAdminPassword, loginError, loading, setView }) => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50 relative font-sans" dir="rtl">
     <div className="bg-white/80 backdrop-blur-xl p-12 rounded-[2.5rem] shadow-2xl w-full max-w-[480px] border border-white/50 z-10">
-      <div className="text-center mb-12"><Logo size="small" /><h2 className="text-3xl font-black text-gray-800 mt-8">بوابة المشرفين</h2></div>
+      <div className="text-center mb-12"><Logo size="small" /><h2 className="text-3xl font-black text-gray-800 mt-8">بوابة المشرفين الآمنة</h2></div>
       <form onSubmit={handleAdminLogin} className="space-y-6">
-        <input value={loginUser} onChange={(e)=>setLoginUser(e.target.value)} className="w-full px-5 py-4 bg-gray-50 border-2 rounded-2xl focus:border-[#009FE3] outline-none" placeholder="admin" />
-        <input type="password" value={loginPass} onChange={(e)=>setLoginPass(e.target.value)} className="w-full px-5 py-4 bg-gray-50 border-2 rounded-2xl focus:border-[#009FE3] outline-none" placeholder="••••••••" />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
+          <input 
+            type="email"
+            value={adminEmail} 
+            onChange={(e)=>setAdminEmail(e.target.value)} 
+            className="w-full px-5 py-4 bg-gray-50 border-2 rounded-2xl focus:border-[#009FE3] outline-none" 
+            placeholder="admin@example.com"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">كلمة المرور</label>
+          <input 
+            type="password" 
+            value={adminPassword} 
+            onChange={(e)=>setAdminPassword(e.target.value)} 
+            className="w-full px-5 py-4 bg-gray-50 border-2 rounded-2xl focus:border-[#009FE3] outline-none" 
+            placeholder="••••••••" 
+            required
+          />
+        </div>
+        
         {loginError && <div className="text-red-500 font-bold flex gap-2"><AlertCircle/>{loginError}</div>}
-        <button type="submit" className="w-full bg-[#1e293b] text-white py-5 rounded-2xl font-black hover:bg-black transition-all shadow-xl">دخول</button>
+        
+        <button type="submit" disabled={loading} className="w-full bg-[#1e293b] text-white py-5 rounded-2xl font-black hover:bg-black transition-all shadow-xl disabled:opacity-50">
+          {loading ? 'جاري التحقق...' : 'دخول آمن'}
+        </button>
         <button type="button" onClick={()=>setView('form')} className="w-full text-gray-400 font-bold">عودة</button>
       </form>
     </div>
   </div>
 );
 
-// --- 3. لوحة التحكم (محدثة) ---
-const DashboardView = ({ sidebarOpen, setSidebarOpen, setView, loginUser, exportToExcel, exportToPDF, registrations }) => {
+// --- 3. لوحة التحكم ---
+const DashboardView = ({ sidebarOpen, setSidebarOpen, handleLogout, loginUser, exportToExcel, exportToPDF, registrations, accessDenied }) => {
   // حالات الفرز
   const [filterRegion, setFilterRegion] = useState('');
   const [filterCity, setFilterCity] = useState('');
@@ -159,13 +211,13 @@ const DashboardView = ({ sidebarOpen, setSidebarOpen, setView, loginUser, export
       const matchRegion = filterRegion ? item.region === filterRegion : true;
       const matchCity = filterCity ? item.city === filterCity : true;
       const matchSearch = searchTerm 
-        ? (item.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || item.phone.includes(searchTerm))
+        ? (item.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || item.phone?.includes(searchTerm))
         : true;
       return matchRegion && matchCity && matchSearch;
     });
   }, [registrations, filterRegion, filterCity, searchTerm]);
 
-  // تحليل البيانات (على البيانات المصفاة)
+  // تحليل البيانات
   const regionData = useMemo(() => {
     const c={}; filteredRegistrations.forEach(r=>c[r.region]=(c[r.region]||0)+1);
     return Object.keys(c).map(k=>({name:k, value:c[k]})).sort((a,b)=>b.value-a.value);
@@ -181,6 +233,41 @@ const DashboardView = ({ sidebarOpen, setSidebarOpen, setView, loginUser, export
     return Object.keys(c).map(k=>({name:k, value:c[k]})).sort((a,b)=>b.value-a.value);
   }, [filteredRegistrations]);
 
+  // --- شاشة الخطأ في الصلاحيات (الجديدة) ---
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans" dir="rtl">
+        <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-2xl text-center border border-red-100">
+           <div className="w-24 h-24 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+             <ShieldAlert size={48}/>
+           </div>
+           <h2 className="text-3xl font-black text-gray-800 mb-4">تنبيه أمني من المنصة</h2>
+           <p className="text-gray-600 mb-8 text-lg leading-relaxed">
+             تم تسجيل دخولك بنجاح، ولكن <strong>النظام لا يستطيع التأكد من صلاحياتك كمشرف</strong>.
+             <br/><br/>
+             <span className="text-red-500 font-bold block mb-2">السبب المحتمل:</span>
+             لم يتم إضافة حسابك في قاعدة البيانات ضمن قائمة المشرفين (Users Collection).
+           </p>
+           
+           <div className="bg-blue-50 p-6 rounded-2xl text-right mb-8 border border-blue-100">
+             <h4 className="font-bold text-[#009FE3] mb-2">كيفية الحل (للمطور):</h4>
+             <ul className="list-disc list-inside text-sm text-gray-600 space-y-2">
+               <li>اذهب إلى لوحة تحكم قاعدة البيانات.</li>
+               <li>أنشئ مجموعة (Collection) باسم <code>users</code>.</li>
+               <li>أضف مستنداً (Document) يحمل نفس <strong>معرف المستخدم (UID)</strong> الخاص بك.</li>
+               <li>أضف حقلاً بداخله باسم <code>role</code> وقيمة <code>admin</code>.</li>
+               <li>معرفك الحالي هو: <code className="bg-white px-2 py-1 rounded border mx-1 select-all">{loginUser?.uid}</code></li>
+             </ul>
+           </div>
+
+           <button onClick={handleLogout} className="bg-gray-800 text-white px-8 py-3 rounded-xl font-bold hover:bg-black transition-all">
+             تسجيل الخروج والمحاولة لاحقاً
+           </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 font-sans flex text-right" dir="rtl">
       <aside className={`bg-[#1e293b] text-white transition-all duration-500 fixed h-full z-20 shadow-2xl ${sidebarOpen?'w-72':'w-24'} flex flex-col`}>
@@ -188,12 +275,12 @@ const DashboardView = ({ sidebarOpen, setSidebarOpen, setView, loginUser, export
           {sidebarOpen && <span className="font-bold text-xl text-blue-400">لوحة التحكم</span>}
           <button onClick={()=>setSidebarOpen(!sidebarOpen)}><Menu/></button>
         </div>
-        <div className="p-6 mt-auto"><button onClick={()=>setView('form')} className="text-red-400 flex gap-4"><LogOut/>{sidebarOpen&&"خروج"}</button></div>
+        <div className="p-6 mt-auto"><button onClick={handleLogout} className="text-red-400 flex gap-4"><LogOut/>{sidebarOpen&&"خروج"}</button></div>
       </aside>
       <div className={`flex-1 transition-all duration-500 ${sidebarOpen?'mr-72':'mr-24'}`}>
         <header className="bg-white shadow-sm sticky top-0 z-10 p-5 flex justify-between">
             <h2 className="text-2xl font-black text-gray-800">نظرة عامة</h2>
-            <div className="text-[#009FE3] font-bold">المشرف: {loginUser}</div>
+            <div className="text-[#009FE3] font-bold">المشرف: {loginUser?.email}</div>
         </header>
         <main className="p-10 space-y-8">
           
@@ -292,13 +379,6 @@ const DashboardView = ({ sidebarOpen, setSidebarOpen, setView, loginUser, export
                 </table>
               </div>
           </div>
-
-          <footer className="mt-8 pt-8 border-t text-center">
-            <p className="text-gray-500 font-medium flex items-center justify-center gap-2">
-               من تصميم وإعداد <span className="text-[#009FE3] font-bold">ذ.إقبال أوعيسى</span>
-            </p>
-            <p className="text-xs text-gray-400 mt-1">جميع الحقوق محفوظة © 2024</p>
-          </footer>
         </main>
       </div>
     </div>
@@ -310,9 +390,13 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState('form');
   const [loading, setLoading] = useState(false);
-  const [loginUser, setLoginUser] = useState('');
-  const [loginPass, setLoginPass] = useState('');
+  
+  // حالات تسجيل الدخول الآمن
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [accessDenied, setAccessDenied] = useState(false); // حالة رفض الصلاحية الجديدة
+
   const [formData, setFormData] = useState({
     fullName: '', cnie: '', phone: '', email: '',
     region: '', province: '', city: '', profession: ''
@@ -321,18 +405,37 @@ export default function App() {
   const [registrations, setRegistrations] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  // المصادقة الأولية عند التحميل
+  // المصادقة الأولية (Check Auth State)
   useEffect(() => {
-    signInAnonymously(auth).catch(err => console.error("Auth Failed:", err));
-    return onAuthStateChanged(auth, setUser);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        if (!currentUser.isAnonymous) {
+          setView('dashboard');
+        }
+      } else {
+        signInAnonymously(auth).catch(err => console.error("Anonymous Auth Failed:", err));
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
-  // جلب البيانات فقط عند الدخول للوحة التحكم
+  // جلب البيانات فقط عند الدخول للوحة التحكم والمستخدم ليس مجهولاً
   useEffect(() => {
-    if (!user || view !== 'dashboard') return;
+    if (!user || user.isAnonymous || view !== 'dashboard') return;
+    setAccessDenied(false); // تصفير حالة الرفض عند المحاولة
+    
     const q = query(collection(db, 'registrations'), orderBy('createdAt', 'desc'));
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setRegistrations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      if (error.code === 'permission-denied') {
+         // بدلاً من إظهار رسالة بالإنجليزية، نقوم بتفعيل شاشة التنبيه العربية
+         setAccessDenied(true);
+      } else {
+         console.error("System Error:", error.message); // رسالة عامة
+      }
     });
     return () => unsubscribe();
   }, [user, view]);
@@ -346,42 +449,53 @@ export default function App() {
     if (!formData.fullName || !formData.phone || !formData.cnie) return alert("المرجو ملء الخانات الضرورية");
     if (!/^[A-Z0-9]+$/i.test(formData.cnie)) return alert("رقم البطاقة الوطنية يجب أن يحتوي على حروف وأرقام فقط");
     
-    // 1. تحقق رقم الهاتف (10 أرقام)
     const phoneRegex = /^\d{10}$/;
-    if (!phoneRegex.test(formData.phone)) {
-        return alert("رقم الهاتف يجب أن يتكون من 10 أرقام بالضبط");
-    }
+    if (!phoneRegex.test(formData.phone)) return alert("رقم الهاتف يجب أن يتكون من 10 أرقام بالضبط");
 
-    // 2. تحقق البريد الإلكتروني
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-        return alert("يرجى إدخال بريد إلكتروني صحيح");
-    }
+    if (!emailRegex.test(formData.email)) return alert("يرجى إدخال بريد إلكتروني صحيح");
 
-    // محاولة إعادة الاتصال إذا انقطع
     if (!auth.currentUser) await signInAnonymously(auth);
 
     setLoading(true);
     try {
       await addDoc(collection(db, 'registrations'), {
-        ...formData, createdAt: serverTimestamp(), userAgent: navigator.userAgent
+        ...formData, 
+        createdAt: serverTimestamp(), 
+        userAgent: navigator.userAgent,
+        uid: auth.currentUser?.uid || 'anonymous'
       });
       setSubmitStatus('success');
       setFormData({ fullName: '', cnie: '', phone: '', email: '', region: '', province: '', city: '', profession: '' });
     } catch (err) { 
-      console.error("Error:", err); 
-      alert("حدث خطأ في الاتصال.");
+      console.error("System Error"); 
+      alert("حدث خطأ في الاتصال. حاول مرة أخرى.");
       setSubmitStatus('error'); 
     }
     setLoading(false);
   };
 
-  const handleAdminLogin = (e) => {
+  // --- تسجيل دخول المشرف (الآمن) ---
+  const handleAdminLogin = async (e) => {
     e.preventDefault();
-    if ((loginUser === 'ikbalrtx' && loginPass === 'Ikbal_159') || 
-        (loginUser === 'soufianiazouzzen@gmail.com' && loginPass === 'Ikbal@789')) {
-      setView('dashboard'); setLoginError('');
-    } else { setLoginError('بيانات الدخول غير صحيحة'); }
+    setLoginError('');
+    setLoading(true);
+
+    try {
+      await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+      setAdminEmail('');
+      setAdminPassword('');
+    } catch (error) {
+      console.error("Auth Error");
+      setLoginError("البريد الإلكتروني أو كلمة السر غير صحيحة");
+    }
+    setLoading(false);
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    setAccessDenied(false);
+    setView('form');
   };
 
   const exportToPDF = () => {
@@ -393,7 +507,6 @@ export default function App() {
       html2canvas: { scale: 2 },
       jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
     };
-    // استخدام مكتبة html2pdf العالمية التي تم تحميلها في index.html
     if (window.html2pdf) {
         window.html2pdf().set(opt).from(element).save();
     } else {
@@ -467,21 +580,24 @@ export default function App() {
       />}
       {view === 'login' && <LoginView 
           handleAdminLogin={handleAdminLogin}
-          loginUser={loginUser}
-          setLoginUser={setLoginUser}
-          loginPass={loginPass}
-          setLoginPass={setLoginPass}
+          adminEmail={adminEmail}
+          setAdminEmail={setAdminEmail}
+          adminPassword={adminPassword}
+          setAdminPassword={setAdminPassword}
           loginError={loginError}
+          loading={loading}
           setView={setView}
       />}
       {view === 'dashboard' && <DashboardView 
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
+          handleLogout={handleLogout}
+          loginUser={user}
           setView={setView}
-          loginUser={loginUser}
           exportToExcel={exportToExcel}
           exportToPDF={exportToPDF}
           registrations={registrations}
+          accessDenied={accessDenied}
       />}
     </>
   );
