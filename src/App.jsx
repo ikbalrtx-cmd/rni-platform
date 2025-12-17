@@ -444,7 +444,7 @@ const DashboardView = ({ sidebarOpen, setSidebarOpen, setView, adminEmail, expor
             <p className="text-gray-500 font-medium flex items-center justify-center gap-2">
               من تصميم وإعداد <span className="text-[#009FE3] font-bold">ذ.إقبال أوعيسى</span>
             </p>
-            <p className="text-xs text-gray-400 mt-1">جميع الحقوق محفوظة © 2024</p>
+            <p className="text-xs text-gray-400 mt-1">جميع الحقوق محفوظة © 2025-2026</p>
           </footer>
         </main>
       </div>
