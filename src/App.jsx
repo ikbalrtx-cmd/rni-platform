@@ -184,9 +184,9 @@ const RegistrationView = ({ setView, submitStatus, setSubmitStatus, handleSubmit
 
       <footer className="mt-4 pb-8 text-center text-gray-500 text-sm font-medium">
         <div className="flex items-center justify-center gap-2">
-          <span>تصميم و إعداد :</span>
-          <a href="https://www.facebook.com/ikbal.ouaissa" target="_blank" className="text-[#009FE3] font-bold flex items-center gap-1">
-            ذ.إقبال أوعيسى <Facebook size={14} />
+          <span>الهيئة الوطنية لأطر التربية والتكوين التجمعيين :</span>
+          <a href="" target="_blank" className="text-[#009FE3] font-bold flex items-center gap-1">
+           <Facebook size={14} />
           </a>
         </div>
       </footer>
